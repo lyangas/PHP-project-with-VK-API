@@ -6,21 +6,23 @@
  * Time: 18:26
  */
 ini_set('display_errors',true);
+
 $connect = new mysqli("localhost", "root", "Gtnh.1511475", "posts_of_group" );//подключили бд
 $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
-
-$add = $connect->query("INSERT INTO name_of_group (domain) VALUES  ('bot_maxim')");
-
 
 //наши паблики для слежки
 $groupName = array('bot_maxim','bot_lena');
 
 //перебираем паблики
 foreach ($groupName as &$value) {
+    //добавляем группы в бд
+    $add = $connect->query("INSERT INTO name_of_group (domain) VALUES  ($value)");
+
     //запрос последнего поста
     $jsonRes = downloadPostsFromWall($value);
     $res = json_decode($jsonRes);
     var_dump($res->response->items[0]->date);
+
     //формируем свой пост из главных данных полученного поста
     $wallPost = array(
         date => date('d/m/Y g:i A', $res->response->items[0]->date),
