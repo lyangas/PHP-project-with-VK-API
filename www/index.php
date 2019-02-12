@@ -6,6 +6,11 @@
  * Time: 18:26
  */
 ini_set('display_errors',true);
+$connect = new mysqli("localhost", "root", "Gtnh.1511475", "posts_of_group" );//подключили бд
+$connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
+
+$add = $connect->query("INSERT INTO name_of_group (domain) VALUES  ('bot_maxim')");
+
 
 //наши паблики для слежки
 $groupName = array('bot_maxim','bot_lena');
