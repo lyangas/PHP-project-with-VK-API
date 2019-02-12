@@ -15,10 +15,10 @@ foreach ($groupName as &$value) {
     //запрос последнего поста
     $jsonRes = downloadPostsFromWall($value);
     $res = json_decode($jsonRes);
-
+    var_dump($res->response->items[0]->date);
     //формируем свой пост из главных данных полученного поста
     $wallPost = array(
-        date => $res->response->items[0]->date,
+        date => date('d/m/Y g:i A', $res->response->items[0]->date),
         domain => $value,
         massage => $res->response->items[0]->text,
         attachments => 'photo' . $res->response->items[0]->attachments[0]->photo->owner_id . '_' . $res->response->items[0]->attachments[0]->photo->id
@@ -26,7 +26,7 @@ foreach ($groupName as &$value) {
 
     //публикуем у себя
     $res = uploadWallPostTowall($wallPost);
-    var_dump($res);
+
 
     sleep(1);// = 20*кол-во пабликов (чтоб не превысить кол-во запросов в день = 5000)
 }
