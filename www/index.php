@@ -7,21 +7,16 @@
  */
 ini_set('display_errors',true);
 
-$connect = new mysqli("localhost", "root", "Gtnh.1511475", "posts_of_group" );//подключили бд
-$connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
+
 
 //наши паблики для слежки
 $groupName = array('bot_maxim','bot_lena');
 
 //перебираем паблики
 foreach ($groupName as &$value) {
-    //добавляем группы в бд
-    $add = $connect->query("INSERT INTO name_of_group (domain) VALUES  ($value)");
-
     //запрос последнего поста
     $jsonRes = downloadPostsFromWall($value);
     $res = json_decode($jsonRes);
-    var_dump($res->response->items[0]->date);
 
     //формируем свой пост из главных данных полученного поста
     $wallPost = array(
@@ -31,9 +26,13 @@ foreach ($groupName as &$value) {
         attachments => 'photo' . $res->response->items[0]->attachments[0]->photo->owner_id . '_' . $res->response->items[0]->attachments[0]->photo->id
     );
 
-    //публикуем у себя
-    $res = uploadWallPostTowall($wallPost);
+    //пытаемся добавить запись в бд
+    $successfulTransfer = saveWallPostToDB($wallPost);
 
+    //публикуем у себя, если удалось добавление в бд
+    if($successfulTransfer) {
+        $res = uploadWallPostTowall($wallPost);
+    }
 
     sleep(1);// = 20*кол-во пабликов (чтоб не превысить кол-во запросов в день = 5000)
 }
@@ -68,7 +67,9 @@ function downloadPostsFromWall($domain){
 }
 
 function saveWallPostToDB($wallPost) {
-
+    $connect = new mysqli("localhost", "root", "Gtnh.1511475", "posts_of_group" );//подключили бд
+    $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
+    return $connect->query("INSERT INTO post (date, domain, massage, attachments) VALUES  ($wallPost[date], $wallPost[domain], $wallPost[massage], $wallPost[attachments])");
 }
 
 function uploadWallPostTowall($wallPost) {
