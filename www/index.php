@@ -12,6 +12,9 @@ ini_set('display_errors',true);
 //наши паблики для слежки
 $groupName = array('bot_maxim','bot_lena');
 
+initGroupName($groupName);
+
+
 //перебираем паблики
 foreach ($groupName as &$value) {
     //запрос последнего поста
@@ -20,14 +23,15 @@ foreach ($groupName as &$value) {
 
     //формируем свой пост из главных данных полученного поста
     $wallPost = array(
-        date => date('d/m/Y g:i A', $res->response->items[0]->date),
+        date => date('Y-m-d g:i:s', $res->response->items[0]->date),
         domain => $value,
         massage => $res->response->items[0]->text,
         attachments => 'photo' . $res->response->items[0]->attachments[0]->photo->owner_id . '_' . $res->response->items[0]->attachments[0]->photo->id
     );
-
+    var_dump($wallPost);
     //пытаемся добавить запись в бд
     $successfulTransfer = saveWallPostToDB($wallPost);
+    var_dump($successfulTransfer);
 
     //публикуем у себя, если удалось добавление в бд
     if($successfulTransfer) {
@@ -66,10 +70,21 @@ function downloadPostsFromWall($domain){
     return $jsonResponse;
 }
 
+function initGroupName ($groupName){
+    foreach ($groupName as &$value) {
+        $connect = new mysqli("localhost", "root", "1511475", "posts_of_group" );//подключили бд
+        $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
+        var_dump($groupName);
+        var_dump($value);
+        $connect->query("INSERT INTO name_of_group (domain) VALUES  ('".$value."')");
+    }
+}
+
 function saveWallPostToDB($wallPost) {
-    $connect = new mysqli("localhost", "root", "Gtnh.1511475", "posts_of_group" );//подключили бд
+    $connect = new mysqli("localhost", "root", "1511475", "posts_of_group" );//подключили бд
     $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
-    return $connect->query("INSERT INTO post (date, domain, massage, attachments) VALUES  ($wallPost[date], $wallPost[domain], $wallPost[massage], $wallPost[attachments])");
+    var_dump($connect);
+    return $connect->query("INSERT INTO post (date, massage, attachments) VALUES  ('".$wallPost[date]."', '".$wallPost[massage]."', '".$wallPost[attachments]."')");
 }
 
 function uploadWallPostTowall($wallPost) {
