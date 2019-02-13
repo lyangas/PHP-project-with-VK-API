@@ -16,7 +16,6 @@ ini_set('display_errors',true);
 //5 сохраняем их в БД
 //6 продолжаем дальше с след группой из списка
 
-
 //наши паблики для слежки
 $groupNames = array('bot_maxim','bot_lena');
 initGroupName($groupNames);
