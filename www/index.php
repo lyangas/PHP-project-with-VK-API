@@ -17,8 +17,8 @@ ini_set('display_errors',true);
 //6 продолжаем дальше с след группой из списка
 
 //наши паблики для слежки
-$groupNames = array('bot_maxim','bot_lena');
-initGroupName($groupNames);
+$groupNames = array('bot_maxim','bot_lena','bot_rudi','club163528123');
+initGroupNameInDB($groupNames);
 
 //перебираем паблики
 foreach ($groupNames as &$domain) {
@@ -28,10 +28,10 @@ foreach ($groupNames as &$domain) {
 
     //формируем свой пост из главных данных полученного поста
     $wallPost = array(
-        date => date('Y-m-d g:i:s', $res->response->items[0]->date),
-        domainId  => getDomainId($domain),
-        massage => $res->response->items[0]->text,
-        attachments => 'photo' . $res->response->items[0]->attachments[0]->photo->owner_id . '_' . $res->response->items[0]->attachments[0]->photo->id
+        date => getDateFromRes($res),
+        domainId  => getDomainIdFromDB($domain),
+        massage => getMassageFromRes($res),
+        attachments => getAttachmentsFromRes ($res)
     );
 
     //пытаемся добавить запись в бд
@@ -44,11 +44,11 @@ foreach ($groupNames as &$domain) {
 
     sleep(1);// = 20*кол-во пабликов (чтоб не превысить кол-во запросов в день = 5000)
 }
-
+echo 'done';
 
 function downloadPostsFromWall($domain){
     $ownerId = NULL;
-    $offset = 0;
+    $offset = 1;
     $count = 1;//кол-во записей для получения max = 100
     $filter = "all";
     $extended = 0;
@@ -61,7 +61,7 @@ function downloadPostsFromWall($domain){
     return $jsonResponse;
 }
 
-function initGroupName ($groupNames){
+function initGroupNameInDB ($groupNames){
     foreach ($groupNames as &$domain) {
         $connect = new mysqli("localhost", "root", "1511475", "posts_of_group");//подключили бд
         $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
@@ -69,20 +69,35 @@ function initGroupName ($groupNames){
     }
 }
 
+function getDateFromRes ($res){
+    return date('Y-m-d g:i:s', $res->response->items[0]->date);
+}
 
+function getTypeOfAttachmentsFromRes ($res) {
+    return $res->response->items[0]->attachments[0]->type;
+}
+
+function getAttachmentsFromRes ($res){
+    return getTypeOfAttachmentsFromRes($res) . $res->response->items[0]->attachments[0]->{getTypeOfAttachmentsFromRes($res)}->owner_id . '_' . $res->response->items[0]->attachments[0]->{getTypeOfAttachmentsFromRes($res)}->id;
+}
 
 function saveWallPostToDB($wallPost) {
     $connect = new mysqli("localhost", "root", "1511475", "posts_of_group" );//подключили бд
     $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
+
     if (strlen($wallPost[massage]) > 0) {
-        return $connect->query("INSERT INTO post (date, massage, attachments, name_id) VALUES  ('$wallPost[date]', '$wallPost[massage]', '$wallPost[attachments]', '$wallPost[domainId])'");
+        return $connect->query("INSERT INTO post (date, massage, attachments, name_id) VALUES  ('$wallPost[date]', '$wallPost[massage]', '$wallPost[attachments]', '$wallPost[domainId]')");
     }
     else {
         return $connect->query("INSERT INTO post (date, attachments, name_id) VALUES  ('$wallPost[date]', '$wallPost[attachments]', '$wallPost[domainId]')");
     }
 }
 
-function getDomainId($domain){
+function getMassageFromRes ($res){
+    return $res->response->items[0]->text;
+}
+
+function getDomainIdFromDB($domain){
     $connect = new mysqli("localhost", "root", "1511475", "posts_of_group" );//подключили бд
     $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
     return mysqli_fetch_array($connect->query("select distinct id from name_of_group where domain like '$domain'; "))[id];
