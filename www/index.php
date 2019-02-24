@@ -116,3 +116,4 @@ function uploadWallPostTowall($wallPost) {
     $jsonResponse = file_get_contents($url);
     return json_decode($jsonResponse);
 }
+//тест
