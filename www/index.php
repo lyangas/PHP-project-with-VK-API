@@ -63,7 +63,7 @@ function downloadPostsFromWall($domain){
 
 function initGroupNameInDB ($groupNames){
     foreach ($groupNames as &$domain) {
-        $connect = new mysqli("localhost", "root", "1511475", "posts_of_group");//подключили бд
+        $connect = new mysqli("localhost", "root", "Gtnh.1511475", "posts_of_group");//подключили бд
         $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
         $connect->query("INSERT INTO name_of_group (domain) VALUES  ('$domain')");
     }
@@ -82,7 +82,7 @@ function getAttachmentsFromRes ($res){
 }
 
 function saveWallPostToDB($wallPost) {
-    $connect = new mysqli("localhost", "root", "1511475", "posts_of_group" );//подключили бд
+    $connect = new mysqli("localhost", "root", "Gtnh.1511475", "posts_of_group" );//подключили бд
     $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
 
     if (strlen($wallPost[massage]) > 0) {
@@ -98,7 +98,7 @@ function getMassageFromRes ($res){
 }
 
 function getDomainIdFromDB($domain){
-    $connect = new mysqli("localhost", "root", "1511475", "posts_of_group" );//подключили бд
+    $connect = new mysqli("localhost", "root", "Gtnh.1511475", "posts_of_group" );//подключили бд
     $connect->query("SET NAMES 'utf8' ");//Кодировка данных получаемых из базы
     return mysqli_fetch_array($connect->query("select distinct id from name_of_group where domain like '$domain'; "))[id];
 }
