@@ -2,8 +2,8 @@
 <project version="4">
   <component name="WebServers">
     <option name="servers">
-      <webServer id="0c384529-a59f-44f7-bdbe-4c9c3eeac2d0" name="LocalFolder" url="http://test1.ru">
-        <fileTransfer port="0" mountedRoot="C:\WebServers\home\test1.ru\www" accessType="MOUNT" />
+      <webServer id="0c384529-a59f-44f7-bdbe-4c9c3eeac2d0" name="LocalFolder" url="http://localhost/PHP-project-with-VK-API/www/index.php">
+        <fileTransfer port="0" mountedRoot="$PROJECT_DIR$/www" accessType="MOUNT" />
       </webServer>
     </option>
   </component>
