@@ -6,18 +6,23 @@
  * Time: 18:26
  */
 ini_set('display_errors',true);
-/*
-$connect = new mysqli("localhost", "root", "Gtnh.1511475", "mydb" );//подключили бд
-$connect->query("SET NAMES 'utf8' ");
-$connect->query("insert into sites (url) values ('5');");
-*/
-//$P = new Post('https://rb.ru/news/',-163528123, 1, 1, 'aa', '','',0, '', '','','','','','','','a9794233aaf78df30cf6e13636d9baf1985ef4d824d9f2d4fb26d258d8763e8247902e6dfe4d429f51ef7','5.37');
-$P = new Post();
-$P->siteUrl = 'https://rb.ru/news/';
-$P->message = 'aaa';
-$P->saveToDb();
 
-//var_dump($P);
+include ('simple_html_dom.php');
+$db = new DBConnector('posts_of_group', 'localhost', 'root', 'Gtnh.1511475');
+$vk = new VKConnector('-163528123','a9794233aaf78df30cf6e13636d9baf1985ef4d824d9f2d4fb26d258d8763e8247902e6dfe4d429f51ef7', '5.37');
+
+$post = new Post();
+$post->siteUrl = 'https://rb.ru/news/';
+$post->message = 'aaa';
+$post->fromHTML('https://rb.ru/news/');
+//var_dump ($post);
+/*
+
+if ($post->findIdOfPost($db) == false){
+    $post->saveToDb($db);
+    $post->postToVK();
+}
+*/
 echo PHP_EOL.'DONE';
 
 
@@ -56,12 +61,9 @@ Class Post
     /** @var int */
     public $close_comments = 0;
     /** @var int */
-    public $accessToken = '';
-    /** @var int */
-    public $version = '5.37';
 
-    public function findIdOfSite (){
-        $connect = new DBConnector('posts_of_group', 'localhost', 'root','Gtnh.1511475');
+
+    public function findIdOfSite (DBConnector $connect){
         $id = mysqli_fetch_array($connect->connection->query("select distinct id from id_of_sites where url like '$this->siteUrl'; "))[id];
         if($id != ''){
             return $id;
@@ -72,25 +74,21 @@ Class Post
             return $a;
         }
     }
-    public function findIdOfPost (){
-        $connect = new DBConnector('posts_of_group', 'localhost', 'root','Gtnh.1511475');
-        try {
-            return mysqli_fetch_array($connect->connection->query("select distinct id from posts where message='$this->message' and attachments ='$this->attachments'; "))[id];
-        }catch(Exception $e){
+    public function findIdOfPost (DBConnector $connect){
+        $id = mysqli_fetch_array($connect->connection->query("select distinct id from posts where message='$this->message' and attachments ='$this->attachments'; "))[id];
+        if($id != '') {
+            return $id;
+        }else{
             return false;
         }
     }
-    public function saveToDb()
+    public function saveToDb(DBConnector $connect)
     {
-        if ($this->findIdOfPost() == false) {
-            echo PHP_EOL.'ttttrr';
-            $connect = new DBConnector('posts_of_group', 'localhost', 'root','Gtnh.1511475');
-            return $connect->connection->query("INSERT INTO posts (url_id, owner_id, friends_only, from_group, message, attachments, services, " .
-                "signed, publish_date, lat, long, place_id, post_id, guid, mark_as_ads, close_comments) " .
-                "VALUES  ('".$this->findIdOfSite()."', '$this->owner_id', ' '$this->friends_only', ' '$this->from_group', ' '$this->message', ' '$this->attachments', ' '$this->services', " .
-                "' '$this->signed', ' '$this->publish_date', ' '$this->lat', ' '$this->long', ' '$this->place_id', ' '$this->post_id', ' '$this->guid', ' '$this->mark_as_ads', ' '$this->close_comments'");
-        }
-        else return false;
+        $connect->connection->query("INSERT INTO posts (url_id, owner_id, friends_only, from_group, message, attachments, services, " .
+            "signed, publish_date, lat, long, place_id, post_id, guid, mark_as_ads, close_comments) " .
+            "VALUES  ('".$this->findIdOfSite()."', '$this->owner_id', ' '$this->friends_only', ' '$this->from_group', ' '$this->message', ' '$this->attachments', ' '$this->services', " .
+            "' '$this->signed', ' '$this->publish_date', ' '$this->lat', ' '$this->long', ' '$this->place_id', ' '$this->post_id', ' '$this->guid', ' '$this->mark_as_ads', ' '$this->close_comments'");
+        $connect->connection->query("INSERT INTO sites_has_posts (id_of_sites, id_of_posts) VALUES ('".$this->findIdOfSite($connect)."', '".$this->findIdOfPost($connect)."')");
     }
     /*
     public function __construct ()
@@ -154,16 +152,19 @@ Class Post
         $this->version = $version;
     }
     */
-    public function fromHTML(array $vkArray)
+    public function fromHTML(string $url)
     {
-        $this->message = $vkArray['friends_only'];
-        $this->attachments = Comments::fromVkArray($vkArray['comments']);
+        $html = file_get_html($url);
+        $res = $html->find('div[class=article-item col-lg-4 col-md-6 col-sm-6 col-xs-12]');
+        $res = $res->find('a');
+        var_dump ($res->plaintext);
+        //var_dump ($res);
     }
 
-    public function toVkArray()
+    public function toVkArray(VKConnector $vk)
     {
         return [
-            'owner_id' => $this->owner_id,
+            'owner_id' => $vk->ownerId,
             'friends_only' => $this->friends_only,
             'from_group' => $this->from_group,
             'message' => $this->message,
@@ -178,14 +179,19 @@ Class Post
             'guid' => $this->guid,
             'mark_as_ads' => $this->mark_as_ads,
             'close_comments' => $this->close_comments,
-            'v' => $this->version,
-            'access_token' => $this->accessToken
+            'v' => $vk->version,
+            'access_token' => $vk->accessToken
         ];
     }
 
-    public function post () {
-        $jsonRequest = "https://api.vk.com/method/wall.post?";
-        $jsonResponse = file_get_contents($jsonRequest);
+    public function postToVK (VKConnector $vk) {
+        $urlRequest = "https://api.vk.com/method/wall.post?";
+        foreach ($this->toVkArray($vk) as $key => $value){
+            $urlRequest .= $key.'='.$value.'&';
+        }
+        $urlRequest = mb_substr($urlRequest, 0, -1);
+        echo $urlRequest;
+        $jsonResponse = file_get_contents($urlRequest);
         return json_decode($jsonResponse);
     }
 }
@@ -225,5 +231,26 @@ class DBConnector {
 
     }
 
+    public function saveToDB(string $column, string $values)//нужно ли
+    {
+        $this->connection->query("INSERT INTO posts () VALUES  ('')");
+    }
+
+}
+
+class VKConnector {
+    /** @var string */
+    public $accessToken;
+    /** @var string */
+    public $version;
+    /** @var string */
+    public $ownerId;
+
+    public function __construct(string $ownerId, string $token, string $version)
+    {
+        $this->accessToken = $token;
+        $this->version = $version;
+        $this->ownerId = $ownerId;
+    }
 }
 
