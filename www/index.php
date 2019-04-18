@@ -5,24 +5,37 @@
  * Date: 10.02.2019
  * Time: 18:26
  */
-ini_set('display_errors',true);
-
 include ('simple_html_dom.php');
+ini_set('display_errors',true);
+ini_set('max_execution_time', 300);
+
+$sources = array( array('https://rb.ru/news/', true, '.article-preview__title a', '[id=post-announce] p'),
+    array('http://expertsib.ru/news/', true, '.field-content a', '[property=og:description]'),
+    array('http://expert.ru/dossier/story/tsifrovaya-ekonomika/', false, '.box-tags-news h2 a', '.box-tags-news p'),
+    array('https://www.kommersant.ru/rubric/4', true, '.brick__text a', '[name=description]'),
+    array('https://www.forbes.ru/biznes', false, '.business-article-description', '.business-article-description'),
+    array('https://www.forbes.ru/finansy', false, '.business-article-description', '.business-article-description'),
+    array('https://www.vedomosti.ru/rubrics/business', true, '.b-news__item__title a', '[name=description]'),
+    array('https://www.vedomosti.ru/rubrics/finance', true, '.b-news__item__title a', '[name=description]'),
+    array('https://www.vedomosti.ru/rubrics/economics', true, '.b-news__item__title a', '[name=description]')
+);
+
+$post = new Post();
 $db = new DBConnector('posts_of_group', 'localhost', 'root', 'Gtnh.1511475');
 $vk = new VKConnector('-163528123','a9794233aaf78df30cf6e13636d9baf1985ef4d824d9f2d4fb26d258d8763e8247902e6dfe4d429f51ef7', '5.37');
 
-$post = new Post();
-$post->siteUrl = 'https://rb.ru/news/';
-$post->message = 'aaa';
-$post->fromHTML('https://rb.ru/news/');
-//var_dump ($post);
-/*
+foreach ($sources as $source) {
+    $post->fromHTML($source[0], $source[1], $source[2], $source[3]);
 
-if ($post->findIdOfPost($db) == false){
-    $post->saveToDb($db);
-    $post->postToVK();
+    if ($post->findIdOfPost($db) == false){
+        $post->saveToDb($db);
+        $post->postToVK($vk);
+    }
+    var_dump($post->attachments);
+    var_dump($post->message);
+
+    sleep (5);
 }
-*/
 echo PHP_EOL.'DONE';
 
 
@@ -60,7 +73,6 @@ Class Post
     public $mark_as_ads = 0;
     /** @var int */
     public $close_comments = 0;
-    /** @var int */
 
 
     public function findIdOfSite (DBConnector $connect){
@@ -86,7 +98,7 @@ Class Post
     {
         $connect->connection->query("INSERT INTO posts (url_id, owner_id, friends_only, from_group, message, attachments, services, " .
             "signed, publish_date, lat, long, place_id, post_id, guid, mark_as_ads, close_comments) " .
-            "VALUES  ('".$this->findIdOfSite()."', '$this->owner_id', ' '$this->friends_only', ' '$this->from_group', ' '$this->message', ' '$this->attachments', ' '$this->services', " .
+            "VALUES  ('".$this->findIdOfSite($connect)."', '$this->owner_id', ' '$this->friends_only', ' '$this->from_group', ' '$this->message', ' '$this->attachments', ' '$this->services', " .
             "' '$this->signed', ' '$this->publish_date', ' '$this->lat', ' '$this->long', ' '$this->place_id', ' '$this->post_id', ' '$this->guid', ' '$this->mark_as_ads', ' '$this->close_comments'");
         $connect->connection->query("INSERT INTO sites_has_posts (id_of_sites, id_of_posts) VALUES ('".$this->findIdOfSite($connect)."', '".$this->findIdOfPost($connect)."')");
     }
@@ -152,14 +164,38 @@ Class Post
         $this->version = $version;
     }
     */
-    public function fromHTML(string $url)
+    public function fromHTML(string $url, bool $withCrossing , string $tegHref, string $tegLid)
     {
+        $this->siteUrl = $url;
         $html = file_get_html($url);
-        $res = $html->find('div[class=article-item col-lg-4 col-md-6 col-sm-6 col-xs-12]');
-        $res = $res->find('a');
-        var_dump ($res->plaintext);
-        //var_dump ($res);
+        $href = $html->find($tegHref, 0)->href;
+        if (strpos($href, $url) == false){
+            $href = preg_split('/(?<!\/)\/(?!\/)/i', $url)[0].$href;
+        }
+        $this->attachments = $href;
+
+        if ($withCrossing == true) {
+            $html->clear();
+            unset($html);
+            $html = file_get_html($href);
+            $this->message = $html->find($tegLid, 0)->plaintext;
+            if ($this->message == NULL){
+                $this->message = $html->find($tegLid, 0)->content;
+            }
+
+            $html->clear();
+            unset($html);
+        } else {
+            $this->message = $html->find($tegLid, 0)->plaintext;
+            if ($this->message == NULL){
+                $this->message = $html->find($tegLid, 0)->content;
+            }
+
+            $html->clear();
+            unset($html);
+        }
     }
+
 
     public function toVkArray(VKConnector $vk)
     {
@@ -167,7 +203,7 @@ Class Post
             'owner_id' => $vk->ownerId,
             'friends_only' => $this->friends_only,
             'from_group' => $this->from_group,
-            'message' => $this->message,
+            'message' => urlencode($this->message),
             'attachments' => $this->attachments,
             'services' => $this->services,
             'signed' => $this->signed,
