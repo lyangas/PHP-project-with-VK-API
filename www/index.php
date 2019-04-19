@@ -25,17 +25,16 @@ $db = new DBConnector('posts_of_group', 'localhost', 'root', 'Gtnh.1511475');
 $vk = new VKConnector('-163528123','a9794233aaf78df30cf6e13636d9baf1985ef4d824d9f2d4fb26d258d8763e8247902e6dfe4d429f51ef7', '5.37');
 
 foreach ($sources as $source) {
-    $post->fromHTML($source[0], $source[1], $source[2], $source[3]);
+    $post->getContentFromURL($source[0], $source[1], $source[2], $source[3]);
 
     if ($post->findIdOfPost($db) == false){
         $post->saveToDb($db);
         $post->postToVK($vk);
     }
-    var_dump($post->attachments);
-    var_dump($post->message);
 
     sleep (5);
 }
+
 echo PHP_EOL.'DONE';
 
 
@@ -96,10 +95,10 @@ Class Post
     }
     public function saveToDb(DBConnector $connect)
     {
-        $connect->connection->query("INSERT INTO posts (url_id, owner_id, friends_only, from_group, message, attachments, services, " .
-            "signed, publish_date, lat, long, place_id, post_id, guid, mark_as_ads, close_comments) " .
-            "VALUES  ('".$this->findIdOfSite($connect)."', '$this->owner_id', ' '$this->friends_only', ' '$this->from_group', ' '$this->message', ' '$this->attachments', ' '$this->services', " .
-            "' '$this->signed', ' '$this->publish_date', ' '$this->lat', ' '$this->long', ' '$this->place_id', ' '$this->post_id', ' '$this->guid', ' '$this->mark_as_ads', ' '$this->close_comments'");
+        $connect->connection->query("INSERT INTO posts (`owner_id`, `friends_only`, `from_group`, `message`, `attachments`, `services`, " .
+            "`signed`, `publish_date`, `lat`, `long`, `place_id`, `post_id`, `guid`, `mark_as_ads`, `close_comments`) " .
+            "VALUES  ('$this->owner_id', '$this->friends_only', '$this->from_group', '$this->message', '$this->attachments', '$this->services', " .
+            "'$this->signed', '$this->publish_date', '$this->lat', '$this->long', '$this->place_id', '$this->post_id', '$this->guid', '$this->mark_as_ads', '$this->close_comments')");
         $connect->connection->query("INSERT INTO sites_has_posts (id_of_sites, id_of_posts) VALUES ('".$this->findIdOfSite($connect)."', '".$this->findIdOfPost($connect)."')");
     }
     /*
@@ -164,7 +163,7 @@ Class Post
         $this->version = $version;
     }
     */
-    public function fromHTML(string $url, bool $withCrossing , string $tegHref, string $tegLid)
+    public function getContentFromURL(string $url, bool $withCrossing , string $tegHref, string $tegLid)
     {
         $this->siteUrl = $url;
         $html = file_get_html($url);
@@ -226,7 +225,6 @@ Class Post
             $urlRequest .= $key.'='.$value.'&';
         }
         $urlRequest = mb_substr($urlRequest, 0, -1);
-        echo $urlRequest;
         $jsonResponse = file_get_contents($urlRequest);
         return json_decode($jsonResponse);
     }
